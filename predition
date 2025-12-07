@@ -1,199 +1,178 @@
 from google.colab import drive
 drive.mount('/content/drive')
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-
-# Read CSV file
+# ------------------------------------------------------
+# Load Dataset
+# ------------------------------------------------------
 df = pd.read_csv("/content/drive/MyDrive/languagededection.csv", encoding="UTF-8")
 df.info()
 
 print("~~~~~~~~~~~LIST OF ALL LANGUAGES~~~~~~~~~~~~~")
-for lang in df['LANGUAGE'].unique():
-    print(lang)
+print(df['LANGUAGE'].unique())
+
 print("~~~~~~~~~~Random samples~~~~~~~~~~~~~~")
 print(df.sample(10))
-dc = df.copy()
+
 print("~~~~~~~~~~Languages count~~~~~~~~~~~")
 print(df['LANGUAGE'].value_counts(sort=False))
 
-
-print("~~~~~~~~~~~~Dataset contain null value or not~~~~~~~~~~~~~~~")
+print("~~~~~~~~~~~~Null Values~~~~~~~~~~~~~~~")
 print(df.isnull().sum())
-print("~~~~~~~~~~~~shape of Dataset~~~~~~~~~~~~~")
+
+print("~~~~~~~~~~~~Shape~~~~~~~~~~~~~")
 print(df.shape)
+
 print("~~~~~~~~~~~Samples~~~~~~~~~~~")
 print(df.head(10))
 
-sns.barplot(x=df['LANGUAGE'].value_counts().index, y=df['LANGUAGE'].value_counts())
+
+# ------------------------------------------------------
+# Visualizations
+# ------------------------------------------------------
+
+# Bar Chart
+sns.barplot(x=df['LANGUAGE'].value_counts().index,
+            y=df['LANGUAGE'].value_counts())
 plt.xlabel('LANGUAGE')
 plt.ylabel('Number of Texts')
 plt.xticks(rotation=90)
-colors = sns.color_palette('bright')[0:len(df['LANGUAGE'].unique())]
 plt.show()
 
+# Pie Chart
 colors = sns.color_palette('bright')[0:len(df['LANGUAGE'].unique())]
-plt.pie(df['LANGUAGE'].value_counts(), labels = df['LANGUAGE'].value_counts().index, colors = colors, autopct='%.0f%%')
+plt.pie(df['LANGUAGE'].value_counts(),
+        labels=df['LANGUAGE'].value_counts().index,
+        colors=colors,
+        autopct='%.0f%%')
 plt.show()
 
-from sklearn.feature_extraction.text import CountVectorizer
-print("Text convert into Vector")
-cv=CountVectorizer()
-X=cv.fit_transform(df['TEXT'])
-y = df['LANGUAGE']
-print(y)
-# Text and language processing
-x = np.array(df["TEXT"])
-x[pd.isna(x)] = ''
-y = np.array(df["LANGUAGE"])
 
-# Text vectorization using CountVectorizer
-cv=CountVectorizer()
-X=cv.fit_transform(df['TEXT'])
+# ------------------------------------------------------
+# Text Vectorization
+# ------------------------------------------------------
+cv = CountVectorizer()
+X = cv.fit_transform(df['TEXT'])
 y = df['LANGUAGE']
 
+# Split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=33
+)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=33)
-print("~~~~~~~~~~~~~~~~TRAINING DATASET~~~~~~~~~~~~~~~~~~~")
-print(X_train.shape)
-print("~~~~~~~~~~~~~~~~TESTING DATASET~~~~~~~~~~~~~~~~~~~~")
-print(X_test.shape)
+print("TRAIN SHAPE:", X_train.shape)
+print("TEST SHAPE:", X_test.shape)
 
-# Multinomial Naive Bayes model training
-model = MultinomialNB()
-model.fit(X_train, y_train)
+# ------------------------------------------------------
+# Train All 3 Models
+# ------------------------------------------------------
+nb_model = MultinomialNB()
+nb_model.fit(X_train, y_train)
 
-# Support Vector Machine (SVM) model training
-clf = SVC(kernel='linear')
-clf.fit(X_train, y_train)
-# logistic model
-model = LogisticRegression()
-model.fit(X_train, y_train)
-#print("logistics Classification Report:")
-model = LogisticRegression()
+svm_model = SVC(kernel='linear')
+svm_model.fit(X_train, y_train)
 
-# Predictions using each models
-model.fit(X_train, y_train)
-y_pred_nb = model.predict(X_test)
-y_pred_svm = clf.predict(X_test)
-y_pred_lr= model.predict(X_test)
-#accuray
-cm3=accuracy_score(y_test, y_pred_lr)#print("Accuracy:",cm1)
-cm1=accuracy_score(y_test, y_pred_nb)#print("Accuracy:", cm2)
-cm2=accuracy_score(y_test, y_pred_svm)#print("Accuracy:", cm3)
+lr_model = LogisticRegression(max_iter=1000)
+lr_model.fit(X_train, y_train)
 
-#pie chart
-dk=np.array([cm1,cm2,cm3])
-lab=["Naive Bayes"," SVM","Logistic Regression"]
-plt.pie(dk,labels=lab,autopct='%0.1f')
-plt.ylim(0,1)
+# ------------------------------------------------------
+# Predictions
+# ------------------------------------------------------
+y_pred_nb = nb_model.predict(X_test)
+y_pred_svm = svm_model.predict(X_test)
+y_pred_lr = lr_model.predict(X_test)
+
+
+# ------------------------------------------------------
+# Accuracy Comparison
+# ------------------------------------------------------
+cm1 = accuracy_score(y_test, y_pred_nb)
+cm2 = accuracy_score(y_test, y_pred_svm)
+cm3 = accuracy_score(y_test, y_pred_lr)
+
+# Pie Chart
+dk = np.array([cm1, cm2, cm3])
+lab = ["Naive Bayes", "SVM", "Logistic Regression"]
+
+plt.pie(dk, labels=lab, autopct='%0.1f%%')
 plt.show()
 
-# Set labels and title
-plt.xlabel('Algorithm')
-plt.ylabel('Accuracy')
-plt.title('Accuracy by Algorithm')
-
-#barchart
-dk=np.array([cm1,cm2,cm3])
-lab=["Naive Bayes"," SVM","Logistic Regression"]
-sns.barplot(x=lab,y=dk)
-plt.xticks(rotation=90)
-# Show plot
+# Bar Chart
+sns.barplot(x=lab, y=dk)
+plt.xticks(rotation=45)
+plt.xlabel("Algorithm")
+plt.ylabel("Accuracy")
 plt.show()
 
 
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-#confusion matrix
+# ------------------------------------------------------
+# Confusion Matrices
+# ------------------------------------------------------
 cm4 = confusion_matrix(y_test, y_pred_nb)
-plt.figure(figsize=(5,5))
-sns.heatmap(cm4, annot = True)
+plt.figure(figsize=(6,4))
+sns.heatmap(cm4, annot=True)
+plt.title("Naive Bayes Confusion Matrix")
 plt.show()
 
 cm5 = confusion_matrix(y_test, y_pred_svm)
-plt.figure(figsize=(5,5))
-sns.heatmap(cm5, annot = True)
+plt.figure(figsize=(6,4))
+sns.heatmap(cm5, annot=True)
+plt.title("SVM Confusion Matrix")
 plt.show()
 
-cm6= confusion_matrix(y_test, y_pred_lr)
-plt.figure(figsize=(5,5))
-sns.heatmap(cm6, annot = True)
+cm6 = confusion_matrix(y_test, y_pred_lr)
+plt.figure(figsize=(6,4))
+sns.heatmap(cm6, annot=True)
+plt.title("Logistic Regression Confusion Matrix")
 plt.show()
 
 
+# ------------------------------------------------------
+# Classification Reports
+# ------------------------------------------------------
+print("~~~~~~~~~ NAIVE BAYES REPORT ~~~~~~~~~")
+print(classification_report(y_test, y_pred_nb))
 
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("Multinomial Naive Bayes Classification Report:")
-print(accuracy_score(y_test, y_pred_nb))
+print("~~~~~~~~~ SVM REPORT ~~~~~~~~~")
+print(classification_report(y_test, y_pred_svm))
 
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("Support Vector Machine Classification Report:")
-print(accuracy_score(y_test, y_pred_svm))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("Logisitic Regression Classification Report:")
-print(accuracy_score(y_test, y_pred_lr))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+print("~~~~~~~~~ LOGISTIC REGRESSION REPORT ~~~~~~~~~")
+print(classification_report(y_test, y_pred_lr))
 
 
-# Display classification reports for both models
-print("Multinomial Naive Bayes Classification Report:")
-print("ACCURACY:\n",accuracy_score(y_test, y_pred_nb))
+# ------------------------------------------------------
+# USER INPUT PREDICTION
+# ------------------------------------------------------
+p = int(input("How many times to check: "))
 
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("CLASSIFICATION:\n",classification_report(y_test, y_pred_nb))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-print("Support Vector Machine Classification Report:")
-print("ACCURACY:\n",accuracy_score(y_test, y_pred_svm))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("CLASSIFICATION:\n",classification_report(y_test, y_pred_svm))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-print("Logisitic Regression Classification Report:")
-print("ACCURACY:\n",accuracy_score(y_test, y_pred_lr))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("CLASSIFICATION:\n",classification_report(y_test, y_pred_lr))
-
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-
-# User input loop
-p=int(input("How many times to check:"))
-if( p == 0):
-  print("Enter the valid input")
+if p <= 0:
+    print("Enter a valid number.")
 else:
-  for q in range(1, p):
-        user = input("Enter a Text: ")
-        dataset = cv.transform([user]).toarray()
-        if(user.isdigit()):
-          print("Enter a Valid text")
-        else:
-           # Prediction using the Naive Bayes model
-           nb_output = model.predict(dataset)
-           print("Naive Bayes Output:", nb_output)
+    for i in range(p):
+        text = input("Enter a Text: ")
 
-          # Prediction using the SVM model
-           svm_output = clf.predict(dataset)
-           print("SVM Output:", svm_output)
+        if text.isdigit():
+            print("Enter valid text only!")
+            continue
 
-          # prediction using Logistic Regression model
-           lr_output = clf.predict(dataset)
-           print("Logistic  Output:", lr_output)
+        data = cv.transform([text]).toarray()
+
+        print("Naive Bayes Output:", nb_model.predict(data))
+        print("SVM Output:", svm_model.predict(data))
+        print("Logistic Output:", lr_model.predict(data))
+        print("-------------------------------------")
+
 
 
 
